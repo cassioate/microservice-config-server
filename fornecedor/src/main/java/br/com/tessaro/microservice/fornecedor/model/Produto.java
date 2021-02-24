@@ -1,5 +1,7 @@
 package br.com.tessaro.microservice.fornecedor.model;
 
+import java.math.BigDecimal;
+
 import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
@@ -10,7 +12,7 @@ import lombok.Setter;
 
 @Entity
 @Getter @Setter
-public class InfoFornecedor {
+public class Produto {
 
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -20,6 +22,8 @@ public class InfoFornecedor {
 	
 	private String estado;
 	
-	private String endereco;
+	private String descricao;
 	
+	private BigDecimal preco;
+
 }

@@ -1,5 +1,8 @@
 package br.com.tessaro.microservice.loja.model.dto;
 
+import lombok.ToString;
+
+@ToString
 public class EnderecoDTO {
 
 	private String rua;
