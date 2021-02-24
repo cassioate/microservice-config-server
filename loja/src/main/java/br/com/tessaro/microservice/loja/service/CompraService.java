@@ -36,7 +36,8 @@ public class CompraService {
 	
 	@HystrixCommand(threadPoolKey = "getByIdThreadPool")
 	public Compra getById(Long id) {
-		return compraRepository.findById(id).orElse(new Compra());
+		Compra compra = compraRepository.findById(id).orElse(new Compra());
+		return compra;
 	}
 	
 	@HystrixCommand(fallbackMethod = "realizaCompraFallback", threadPoolKey = "realizaCompraThreadPool")
