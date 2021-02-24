@@ -1,5 +1,7 @@
 package br.com.tessaro.microservice.loja.service;
 
+import java.time.LocalDate;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -8,9 +10,12 @@ import org.springframework.stereotype.Service;
 import com.netflix.hystrix.contrib.javanica.annotation.HystrixCommand;
 
 import br.com.tessaro.microservice.loja.client.FornecedorClient;
+import br.com.tessaro.microservice.loja.client.TransportadorClient;
 import br.com.tessaro.microservice.loja.model.Compra;
+import br.com.tessaro.microservice.loja.model.dto.InfoEntregaDTO;
 import br.com.tessaro.microservice.loja.model.dto.InfoFornecedorDTO;
 import br.com.tessaro.microservice.loja.model.dto.InfoPedidoDTO;
+import br.com.tessaro.microservice.loja.model.dto.VoucherDTO;
 import br.com.tessaro.microservice.loja.model.dto.compraDTO;
 import br.com.tessaro.microservice.loja.repository.CompraRepository;
 
@@ -18,6 +23,9 @@ import br.com.tessaro.microservice.loja.repository.CompraRepository;
 public class CompraService {
 
 	private static final Logger LOG = LoggerFactory.getLogger(CompraService.class);
+	
+	@Autowired
+	private TransportadorClient transportadorClient;
 	
 	@Autowired
 	private CompraRepository compraRepository;
@@ -39,12 +47,21 @@ public class CompraService {
 		LOG.info("Realizando um pedido");
 		InfoPedidoDTO pedido = fornecedorClient.realizaPedido(compra.getItens());
 			
-		System.out.println(info.getEndereco());
+		InfoEntregaDTO entregaDto = new InfoEntregaDTO();
+		entregaDto.setPedidoId(pedido.getId());
+		entregaDto.setDataParaEntrega(LocalDate.now().plusDays(pedido.getTempoDePreparo()));
+		entregaDto.setEnderecoOrigem(info.getEndereco());
+		entregaDto.setEnderecoDestino(compra.getEndereco().toString());
+		
+		VoucherDTO voucher = transportadorClient.reservaEntrega(entregaDto);
+		
 		
 		Compra compraSalva = new Compra();
 		compraSalva.setPedidoId(pedido.getId());
 		compraSalva.setTempoDePreparo(pedido.getTempoDePreparo());
 		compraSalva.setEnderecoDestino(compra.getEndereco().toString());
+		compraSalva.setDataParaEntrega(voucher.getPrevisaoParaEntrega());
+		compraSalva.setVoucher(voucher.getNumero());
 		
 		compraRepository.save(compraSalva);
 		
