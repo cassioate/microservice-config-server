@@ -5,13 +5,14 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import com.netflix.hystrix.contrib.javanica.annotation.HystrixCommand;
 
 import br.com.tessaro.microservice.loja.client.FornecedorClient;
 import br.com.tessaro.microservice.loja.model.Compra;
 import br.com.tessaro.microservice.loja.model.dto.InfoFornecedorDTO;
 import br.com.tessaro.microservice.loja.model.dto.InfoPedidoDTO;
 import br.com.tessaro.microservice.loja.model.dto.compraDTO;
-
+import br.com.tessaro.microservice.loja.repository.CompraRepository;
 
 @Service
 public class CompraService {
@@ -19,8 +20,17 @@ public class CompraService {
 	private static final Logger LOG = LoggerFactory.getLogger(CompraService.class);
 	
 	@Autowired
+	private CompraRepository compraRepository;
+	
+	@Autowired
 	private FornecedorClient fornecedorClient;
 	
+	@HystrixCommand(threadPoolKey = "getByIdThreadPool")
+	public Compra getById(Long id) {
+		return compraRepository.findById(id).orElse(new Compra());
+	}
+	
+	@HystrixCommand(fallbackMethod = "realizaCompraFallback", threadPoolKey = "realizaCompraThreadPool")
 	public Compra realizaCompra(compraDTO compra) {
 		
 		LOG.info("Buscando informações do fornecedor de {}", compra.getEndereco().getEstado());
@@ -36,9 +46,28 @@ public class CompraService {
 		compraSalva.setTempoDePreparo(pedido.getTempoDePreparo());
 		compraSalva.setEnderecoDestino(compra.getEndereco().toString());
 		
+		compraRepository.save(compraSalva);
+		
+		/* codigo comentado abaixo foi utilizado para exemplificar a utilização do Hystrix na hora de fazer chamado no postman*/
+////		Time.sleep(2000);
+//		try {
+//			Thread.sleep(2000);
+//		} catch (InterruptedException e) {
+//			// TODO Auto-generated catch block
+//			e.printStackTrace();
+//		}
+		
 		return compraSalva;
 		
 	}
+	
+	
+	public Compra realizaCompraFallback(compraDTO compra) {
+		Compra compraFallBack = new Compra();
+		return compraFallBack;
+	}
+	
+	
 	
 	/* utilização do LoadBalancer sem o FeignClients */
 	

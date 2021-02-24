@@ -8,6 +8,6 @@ spring:
       server:
         git:
           uri: https://github.com/cassioate/microservice-repo
-          search-paths: fornecedor
+          search-paths: fornecedor, loja
           
           
