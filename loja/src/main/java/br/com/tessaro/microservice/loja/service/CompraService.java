@@ -17,6 +17,7 @@ import br.com.tessaro.microservice.loja.model.dto.InfoFornecedorDTO;
 import br.com.tessaro.microservice.loja.model.dto.InfoPedidoDTO;
 import br.com.tessaro.microservice.loja.model.dto.VoucherDTO;
 import br.com.tessaro.microservice.loja.model.dto.compraDTO;
+import br.com.tessaro.microservice.loja.model.enumeration.CompraState;
 import br.com.tessaro.microservice.loja.repository.CompraRepository;
 
 @Service
@@ -41,11 +42,26 @@ public class CompraService {
 	@HystrixCommand(fallbackMethod = "realizaCompraFallback", threadPoolKey = "realizaCompraThreadPool")
 	public Compra realizaCompra(compraDTO compra) {
 		
+		Compra compraSalva = new Compra();
+		
+		compraSalva.setState(CompraState.RECEBIDO);
+		compraSalva.setEnderecoDestino(compra.getEndereco().toString());
+		compraRepository.save(compraSalva);
+		compra.setCompraId(compraSalva.getId());
+		
+		
 		LOG.info("Buscando informações do fornecedor de {}", compra.getEndereco().getEstado());
 		InfoFornecedorDTO info = fornecedorClient.getInfoPorEstado(compra.getEndereco().getEstado());
-		
 		LOG.info("Realizando um pedido");
 		InfoPedidoDTO pedido = fornecedorClient.realizaPedido(compra.getItens());
+		
+		compraSalva.setState(CompraState.PEDIDO_REALIZADO);
+		compraSalva.setPedidoId(pedido.getId());
+		compraSalva.setTempoDePreparo(pedido.getTempoDePreparo());
+		compraRepository.save(compraSalva);
+		
+		/* Utilizado apenas para verificar se o State do compraSalva estava funcionando */
+//		if (1==1) throw new RuntimeException();
 			
 		InfoEntregaDTO entregaDto = new InfoEntregaDTO();
 		entregaDto.setPedidoId(pedido.getId());
@@ -54,15 +70,10 @@ public class CompraService {
 		entregaDto.setEnderecoDestino(compra.getEndereco().toString());
 		
 		VoucherDTO voucher = transportadorClient.reservaEntrega(entregaDto);
-		
-		
-		Compra compraSalva = new Compra();
-		compraSalva.setPedidoId(pedido.getId());
-		compraSalva.setTempoDePreparo(pedido.getTempoDePreparo());
-		compraSalva.setEnderecoDestino(compra.getEndereco().toString());
+	
+		compraSalva.setState(CompraState.RESERVA_ENTREGA_REALIZADA);
 		compraSalva.setDataParaEntrega(voucher.getPrevisaoParaEntrega());
 		compraSalva.setVoucher(voucher.getNumero());
-		
 		compraRepository.save(compraSalva);
 		
 		/* codigo comentado abaixo foi utilizado para exemplificar a utilização do Hystrix na hora de fazer chamado no postman*/
@@ -80,6 +91,10 @@ public class CompraService {
 	
 	
 	public Compra realizaCompraFallback(compraDTO compra) {
+		if (compra.getCompraId() != null) {
+			return compraRepository.findById(compra.getCompraId()).get();
+		}
+		
 		Compra compraFallBack = new Compra();
 		return compraFallBack;
 	}
